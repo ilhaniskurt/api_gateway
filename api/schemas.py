@@ -2,6 +2,8 @@ from pydantic import BaseModel, validator, root_validator
 
 callable_events = ['test', 'login', 'two_factor']
 
+# TODO: Check there are no more or less keys in values sent in
+
 class EventSchema(BaseModel):
     event: str
     data: dict

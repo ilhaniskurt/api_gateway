@@ -8,6 +8,8 @@ from utils.config import get_settings
 
 config = get_settings()
 
+# TODO: add bootstrap connected check to getters
+
 @lru_cache
 def get_producer() -> KafkaProducer | None:
     try: # Trying connecting to kafka

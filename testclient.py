@@ -9,5 +9,7 @@ async def test():
         await websocket.send(json.dumps(data))
         response = await websocket.recv()
         print(response)
- 
+        response = await websocket.recv()
+        print(response)
+
 asyncio.new_event_loop().run_until_complete(test())
