@@ -1,54 +1,46 @@
+import asyncio
 from threading import Thread
 
 from fastapi import FastAPI
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
 from api.schemas import EventSchema
-from api.managers import ConnectionManager
+from api.managers import get_manager
+from api.tasks import login_consumer
 from utils.validator import valid_schema_data_or_error
-from utils.config import Settings, get_settings
-from utils.broker import get_consumer, get_producer
+from utils.config import get_settings
+from utils.broker import get_producer
 
 app = FastAPI()
 
-config: Settings
-manager: ConnectionManager
+config: get_settings()
+producer = get_producer()
+manager = get_manager()
 
 # TODO: replace threading with asyncio 
 
 @app.on_event('startup')
 def startup():
-    global config, producer, manager
-
-    config = get_settings()
-    producer = get_producer()
-    manager = ConnectionManager()
+    global producer
 
     if producer is None:
         print('Producer is offline')
 
-    Thread(target=login_consumer, args={}, 
-			   name="login_consumer", daemon=True).start()
+    # Might throw an exception if no loops exists
+    loop = asyncio.get_running_loop() 
+    loop.create_task(login_consumer())
+
 
 @app.on_event('shutdown')
-def shutdown():
+async def shutdown():
+    # Waiting for background tasks to finish
+    # all_tasks = asyncio.all_tasks()
+    # current_task = asyncio.current_task()
+    # all_tasks.remove(current_task)
+    # await asyncio.wait(all_tasks)
     pass
 
-# Thread Functions
-
-def login_consumer():
-    consumer = get_consumer(config.kafka_login_topic)
-    if not consumer:
-        print('Login consumer is offline')
-        return
-
-    for msg in consumer:
-        data: dict = msg.value
-        websocket: WebSocket = manager.active_connections[data['socket']]
-        print(f"LC: {data}")
-
-
-# Functions 
+# Event Functions 
 
 async def login(websocket: WebSocket, ws_id: str, data: dict):
     producer = get_producer()
@@ -79,7 +71,7 @@ async def websocket(websocket: WebSocket):
             
             match data['event']:
                 case 'login':
-                    await login(websocket, ws_id, data['data'])
+                    await login(websocket, ws_id, data)
 
             await websocket.send_text(f"Message text was: {data}")
     except WebSocketDisconnect:
