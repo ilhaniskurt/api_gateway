@@ -15,7 +15,8 @@ class ConnectionManager:
 
     async def send(self, id: str, msg: str):
         socket: WebSocket = self.active_connections[id]
-        await socket.send_text(msg)
+        # Replace single quotes with double for json format complience
+        await socket.send_text(msg.replace("'", '"'))
 
     def disconnect(self, key: str):
         self.active_connections.pop(key)

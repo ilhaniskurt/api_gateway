@@ -1,5 +1,4 @@
 import asyncio
-from threading import Thread
 
 from fastapi import FastAPI
 from fastapi.websockets import WebSocket, WebSocketDisconnect
@@ -10,6 +9,7 @@ from api.tasks import login_consumer
 from utils.validator import valid_schema_data_or_error
 from utils.config import get_settings
 from utils.broker import get_producer
+from utils.async_broker import clients
 
 app = FastAPI()
 
@@ -32,6 +32,9 @@ def startup():
 
 @app.on_event('shutdown')
 async def shutdown():
+    # Close all Kafka Clients
+    for client in clients:
+        await client.stop()
     # Waiting for background tasks to finish
     # all_tasks = asyncio.all_tasks()
     # current_task = asyncio.current_task()
@@ -82,6 +85,6 @@ async def websocket(websocket: WebSocket):
             if err:
                 await manager.send(socket_id, err)
 
-            await websocket.send_text(f"Message text was: {data}")
+            # await websocket.send_text(f"Message text was: {data}")
     except WebSocketDisconnect:
         manager.disconnect(socket_id)

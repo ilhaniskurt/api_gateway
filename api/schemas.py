@@ -11,7 +11,7 @@ class EventSchema(BaseModel):
     @validator("event")
     def event_validator(cls, value, values, **kwargs):
         if value not in callable_events:
-            raise ValueError(f'cannot call "{value}" event')
+            raise ValueError(f'cannot call ({value}) event')
         else:
             return value
         

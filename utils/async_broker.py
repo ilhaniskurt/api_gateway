@@ -13,6 +13,8 @@ config = get_settings()
 # TODO: add bootstrap connected check to getters
 # TODO: create a list of consumers and producer to close at shutdown
 
+clients = []
+
 @lru_cache
 def get_producer() -> KafkaProducer | None:
     try: # Trying connecting to kafka
@@ -35,6 +37,7 @@ async def get_async_consumer(topic: str) -> AIOKafkaConsumer | None:
     try: 
         # Trying connecting to kafka
         await consumer.start()
+        clients.append(consumer)
         return consumer
     except KafkaConnectionError as e:
         await consumer.stop()
