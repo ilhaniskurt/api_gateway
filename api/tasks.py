@@ -1,4 +1,4 @@
-from fastapi.websockets import WebSocket
+import requests
 
 from api.managers import get_manager
 from utils.config import get_settings
@@ -13,8 +13,14 @@ async def login_consumer():
         print('Login consumer is offline')
         return
 
+    url = config.cuzdan_api_base_url + config.cuzdan_login_api
+
+    # Use AIOHTTP \
+
     async for msg in consumer:
         data: dict = msg.value
-        websocket: WebSocket = manager.active_connections[data['socket']]
-        await websocket.send_text("teas")
+        
+        response = requests.post(url, json=data['data'])
+        r = {'event':'login', 'result':response.json()}
+        await manager.send(data['socket'], f"{r}")
         print(f"LC: {data}")

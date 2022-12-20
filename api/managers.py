@@ -13,6 +13,10 @@ class ConnectionManager:
         self.active_connections.update({id:websocket})
         return id
 
+    async def send(self, id: str, msg: str):
+        socket: WebSocket = self.active_connections[id]
+        await socket.send_text(msg)
+
     def disconnect(self, key: str):
         self.active_connections.pop(key)
 
