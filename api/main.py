@@ -5,7 +5,13 @@ from fastapi.websockets import WebSocket, WebSocketDisconnect
 
 from api.managers import get_manager
 from api.schemas import EventSchema
-from api.tasks import login_consumer
+from api.tasks import (
+    login_consumer,
+    two_fa_consumer,
+    customer_list_consumer,
+    customer_connect_consumer,
+    transaction_consumer
+)
 from utils.async_broker import clients
 from utils.broker import get_producer
 from utils.config import get_settings
@@ -26,8 +32,17 @@ def startup():
 
     # Might throw an exception if no loops exists
     loop = asyncio.get_running_loop() 
-    # Listing on login events
+    # Listening on login events
     loop.create_task(login_consumer())
+    # Listening on two_factor events
+    loop.create_task(two_fa_consumer())
+    # Listening on customer_list events
+    loop.create_task(customer_list_consumer())
+    # Listening on customer_connect events
+    loop.create_task(customer_connect_consumer())
+    # Listening on transaction events
+    loop.create_task(transaction_consumer())
+
 
 
 @app.on_event('shutdown')
@@ -52,9 +67,7 @@ def login(ws_id: str, data: dict) -> str | None:
         return err
 
     data.update({'socket':ws_id})
-
     producer.send(config.kafka_login_topic, data)
-
     return None
 
 def two_factor(ws_id: str, data: dict) -> str | None:
@@ -65,10 +78,42 @@ def two_factor(ws_id: str, data: dict) -> str | None:
         return err
 
     data.update({'socket':ws_id})
-
-    producer.send(config.kafka_login_topic, data)
-
+    producer.send(config.kafka_two_fa_topic, data)
     return None
+
+def customer_list(ws_id: str, data: dict) -> str | None:
+    producer = get_producer()
+
+    if not producer:
+        err = '[{"loc":"non_field_error", "msg": "Service unavailable"}]'
+        return err
+
+    data.update({'socket':ws_id})
+    producer.send(config.kafka_customer_list, data)
+    return None
+
+def customer_connect(ws_id: str, data: dict) -> str | None:
+    producer = get_producer()
+
+    if not producer:
+        err = '[{"loc":"non_field_error", "msg": "Service unavailable"}]'
+        return err
+
+    data.update({'socket':ws_id})
+    producer.send(config.kafka_customer_connect, data)
+    return None
+
+def transaction(ws_id: str, data: dict) -> str | None:
+    producer = get_producer()
+
+    if not producer:
+        err = '[{"loc":"non_field_error", "msg": "Service unavailable"}]'
+        return err
+
+    data.update({'socket':ws_id})
+    producer.send(config.kafka_transaction, data)
+    return None
+
 
 # Websocket Routing
 
@@ -95,6 +140,12 @@ async def websocket(websocket: WebSocket):
                     err = login(socket_id, data)
                 case 'two_factor':
                     err = two_factor(socket_id, data)
+                case 'customer_list':
+                    err = customer_list(socket_id, data)
+                case 'customer_connect':
+                    err = customer_connect(socket_id, data)
+                case 'transaction':
+                    err = transaction(socket_id, data)
 
             # Any errors while processing event
             if err:

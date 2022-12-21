@@ -1,5 +1,6 @@
 from functools import lru_cache
 from uuid import uuid4
+import json
 
 from fastapi.websockets import WebSocket
 
@@ -13,10 +14,10 @@ class ConnectionManager:
         self.active_connections.update({id:websocket})
         return id
 
-    async def send(self, id: str, msg: str):
+    async def send(self, id: str, msg: dict):
         socket: WebSocket = self.active_connections[id]
         # Replace single quotes with double for json format complience
-        await socket.send_text(msg.replace("'", '"'))
+        await socket.send_text(json.dumps(msg))
 
     def disconnect(self, key: str):
         self.active_connections.pop(key)

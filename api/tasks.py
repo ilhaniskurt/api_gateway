@@ -24,11 +24,9 @@ async def login_consumer():
         # Async Http request to api
         async with ClientSession() as session:
             async with session.post(url, json=data['data']) as response:
-                rj = await response.json()
+                rj = {'event':'login', 'result':await response.json()}
 
-        rd = {'event':'login', 'result':rj}
-
-        await manager.send(data['socket'], f"{rd}")
+        await manager.send(data['socket'], rj)
 
 async def two_fa_consumer():
     consumer = await get_async_consumer(config.kafka_two_fa_topic)
@@ -38,9 +36,70 @@ async def two_fa_consumer():
 
     url = config.cuzdan_api_base_url + config.cuzdan_two_factor_api
 
-    # Use AIOHTTP \
+    async for msg in consumer:
+        data: dict = msg.value
+        
+        print(f"TFC: {data}")
+
+        async with ClientSession() as session:
+            async with session.post(url, headers={'Authorization':data['data']['token']}, json={'two_factor_code': data['data']['pin']}) as response:
+                rj = {'event':'login', 'result':await response.json()}
+        
+        await manager.send(data['socket'], rj)
+
+async def customer_list_consumer():
+    consumer = await get_async_consumer(config.kafka_customer_list)
+    if not consumer:
+        print('Customer list consumer is offline')
+        return
+
+    url = config.cuzdan_api_base_url + config.cuzdan_customer_list_api
 
     async for msg in consumer:
         data: dict = msg.value
         
-        print(f"LC: {data}")
+        print(f"CLC: {data}")
+
+        async with ClientSession() as session:
+            async with session.get(url, headers={'Authorization':data['data']['token']}) as response:
+                rj = {'event':'login', 'result':await response.json()}
+        
+        await manager.send(data['socket'], rj)
+
+async def customer_connect_consumer():
+    consumer = await get_async_consumer(config.kafka_customer_connect)
+    if not consumer:
+        print('Customer connect consumer is offline')
+        return
+
+    url = config.cuzdan_api_base_url + config.cuzdan_customer_connect_api
+
+    async for msg in consumer:
+        data: dict = msg.value
+        
+        print(f"CCC: {data}")
+
+        async with ClientSession() as session:
+            async with session.post(url, headers={'Authorization':data['data']['token']}, json={'customer_no': data['data']['customer_no']}) as response:
+                rj = {'event':'login', 'result':await response.json()}
+        
+        await manager.send(data['socket'], rj)
+
+async def transaction_consumer():
+    consumer = await get_async_consumer(config.kafka_transaction)
+    if not consumer:
+        print('Customer list consumer is offline')
+        return
+
+    url = config.cuzdan_api_base_url + config.cuzdan_trasnaction_api
+
+    async for msg in consumer:
+        data: dict = msg.value
+        
+        print(f"TC: {data}")
+
+        async with ClientSession() as session:
+            async with session.get(url, headers={'Authorization':data['data']['token']}) as response:
+                rj = {'event':'login', 'result':await response.json()}
+        
+        await manager.send(data['socket'], rj)
