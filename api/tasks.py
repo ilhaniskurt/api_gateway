@@ -1,4 +1,4 @@
-import requests
+from aiohttp import ClientSession
 
 from api.managers import get_manager
 from utils.config import get_settings
@@ -15,15 +15,20 @@ async def login_consumer():
 
     url = config.cuzdan_api_base_url + config.cuzdan_login_api
 
-    # Use AIOHTTP \
-
     async for msg in consumer:
         data: dict = msg.value
-        
-        response = requests.post(url, json=data['data'])
-        r = {'event':'login', 'result':response.json()}
-        await manager.send(data['socket'], f"{r}")
+        rj = ''
+
         print(f"LC: {data}")
+
+        # Async Http request to api
+        async with ClientSession() as session:
+            async with session.post(url, json=data['data']) as response:
+                rj = await response.json()
+
+        rd = {'event':'login', 'result':rj}
+
+        await manager.send(data['socket'], f"{rd}")
 
 async def two_fa_consumer():
     consumer = await get_async_consumer(config.kafka_two_fa_topic)

@@ -3,13 +3,13 @@ import asyncio
 from fastapi import FastAPI
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
-from api.schemas import EventSchema
 from api.managers import get_manager
+from api.schemas import EventSchema
 from api.tasks import login_consumer
-from utils.validator import valid_schema_data_or_error
-from utils.config import get_settings
-from utils.broker import get_producer
 from utils.async_broker import clients
+from utils.broker import get_producer
+from utils.config import get_settings
+from utils.validator import valid_schema_data_or_error
 
 app = FastAPI()
 
@@ -44,7 +44,20 @@ async def shutdown():
 
 # Event Functions 
 
-async def login(ws_id: str, data: dict) -> str | None:
+def login(ws_id: str, data: dict) -> str | None:
+    producer = get_producer()
+
+    if not producer:
+        err = '[{"loc":"non_field_error", "msg": "Service unavailable"}]'
+        return err
+
+    data.update({'socket':ws_id})
+
+    producer.send(config.kafka_login_topic, data)
+
+    return None
+
+def two_factor(ws_id: str, data: dict) -> str | None:
     producer = get_producer()
 
     if not producer:
@@ -79,7 +92,9 @@ async def websocket(websocket: WebSocket):
             # Event matching
             match data['event']:
                 case 'login':
-                    err = await login(socket_id, data)
+                    err = login(socket_id, data)
+                case 'two_factor':
+                    err = two_factor(socket_id, data)
 
             # Any errors while processing event
             if err:

@@ -1,10 +1,8 @@
 import json
 from functools import lru_cache
 
-from aiokafka import AIOKafkaConsumer
-
-from kafka import KafkaProducer, KafkaConsumer
-from kafka.errors import NoBrokersAvailable, KafkaConnectionError
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from kafka.errors import KafkaConnectionError
 
 from utils.config import get_settings
 
@@ -16,14 +14,17 @@ config = get_settings()
 clients = []
 
 @lru_cache
-def get_producer() -> KafkaProducer | None:
-    try: # Trying connecting to kafka
-        producer = KafkaProducer(
+async def get_async_producer() -> AIOKafkaProducer | None:
+    producer = AIOKafkaProducer(
             bootstrap_servers=config.broker_address,
             value_serializer=lambda v: json.dumps(v).encode('utf-8')
-        )
+    )
+    try: 
+        # Trying connecting to kafka
+        await producer.start()
         return producer
-    except NoBrokersAvailable as e:
+    except KafkaConnectionError as e:
+        await producer.stop()
         return None
 
 @lru_cache
